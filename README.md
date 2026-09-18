@@ -42,5 +42,5 @@ Figure 3:
 Figure 4:
 - Fig4_2umHD (1).ipynb
 - Fig4_COMMOT_v2_clean.ipynb
-- Fig4_VisiumToR.ipynb
+- Fig4_violin.ipynb
 
