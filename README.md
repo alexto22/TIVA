@@ -4,11 +4,11 @@ The vascular, immune, and stromal compartments of tumors can reactivate fetal ge
 
 ## Download links for processed files
 
-- [VIO](https://1drv.ms/u/c/afe99e57b70de78c/IQDyyciB7x3QSb4qkRV3j8uPAd_yj6K6t6HxFEKWXQbO4JA?e=BYxcHs)
-- [PDO](https://1drv.ms/u/c/afe99e57b70de78c/IQAebqMHS6anRKpiA7DcaOKPAd6HNqHVSIOyN6_pq7Fd13g?e=Vpv1V5)
-- [CIVA (scRNAseq)](https://1drv.ms/u/c/afe99e57b70de78c/IQDTIhTg3gtzTqeOS04442opAZ5HXZnHa_4uoY1BGZhD5SM?e=yX50jz)
-- [CIVA (VisiumHD)](https://1drv.ms/u/c/afe99e57b70de78c/IQBvPV-VjDRySYdzQnUoKzycAca5My1AQoRCklRVXKJw2Ms?e=8hLNMv)
-- [Public lung cancer samples](https://1drv.ms/u/c/afe99e57b70de78c/IQD4zizjt9I3SqkSF5YAOV6HAbIYfqgPzpIgOWS0vsh0IXE?e=xoV4c0)
+- [VIO](https://www.dropbox.com/scl/fi/z38qp5aglwuiwxqviob6r/F1_VIO.rds?rlkey=6jz62fpx38uikgtr589amfdja&dl=1)
+- [PDO](https://www.dropbox.com/scl/fi/t0owxr2jovh01ugofor0v/lam.rds?rlkey=5ussjc56q39mwjblgk3hmq58r&dl=1)
+- [CIVA (scRNAseq)](https://www.dropbox.com/scl/fi/l95375duse854fqfqypcm/Flex.rds?rlkey=68xx629wemlah9na412jknowl&dl=1)
+- [CIVA (VisiumHD)](https://www.dropbox.com/scl/fi/pmp4k67r9owuvag45c8fk/F4_VisiumHD.h5ad?rlkey=74crcopktkabr1phpaiz1moje&dl=1)
+- [Public lung cancer samples](https://www.dropbox.com/scl/fi/efxs6vumvv4ffdyuih2o2/zemin_lung.rds?rlkey=66bnxdo3rb1jsve9mlrpkgqyc&dl=1)
 
 The files for the Fig 3 cell–cell interaction analysis can be downloaded from [cellphonefiles](https://1drv.ms/f/c/afe99e57b70de78c/IgAI2aysTshgS6ib-ZKALlvBAVoSyAAHw9Fkd-ckQGQ1FTU?e=Mouj0t):
 
