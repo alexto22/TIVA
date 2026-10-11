@@ -10,7 +10,7 @@ The vascular, immune, and stromal compartments of tumors can reactivate fetal ge
 - [CIVA (VisiumHD)](https://www.dropbox.com/scl/fi/pmp4k67r9owuvag45c8fk/F4_VisiumHD.h5ad?rlkey=74crcopktkabr1phpaiz1moje&dl=1)
 - [Public lung cancer samples](https://www.dropbox.com/scl/fi/efxs6vumvv4ffdyuih2o2/zemin_lung.rds?rlkey=66bnxdo3rb1jsve9mlrpkgqyc&dl=1)
 
-The files for the Fig 3 cell–cell interaction analysis can be downloaded from [cellphonefiles](https://1drv.ms/f/c/afe99e57b70de78c/IgAI2aysTshgS6ib-ZKALlvBAVoSyAAHw9Fkd-ckQGQ1FTU?e=Mouj0t):
+The files for the Fig 3 cell–cell interaction analysis can be downloaded from [cellphonefiles](https://www.dropbox.com/scl/fo/wped4hee8ew7g7lydxel3/AKwpdcIvg4DFrbtTugDOi5o?rlkey=69hav7i9gq8af7r8xtnot91n2&dl=1):
 
 ```text
 cellphonefiles/
