@@ -1,128 +1,88 @@
+#!/usr/bin/env Rscript
+# Usage: Rscript Fig6_PLVAP.R input.rds output_directory
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) != 2L) {
-  stop("Usage: Rscript generate_endothelial_metrics.R INPUT_RDATA OUTPUT_CSV", call. = FALSE)
+if (length(args) < 1L || length(args) > 2L)
+  stop('Usage: Rscript Fig6_PLVAP.R input.rds [output_directory]')
+suppressPackageStartupMessages(library(SeuratObject))
+input <- normalizePath(args[1], mustWork = TRUE)
+out <- if (length(args) == 2L) args[2] else 'PLVAP_results'
+dir.create(out, recursive = TRUE, showWarnings = FALSE)
+# RData support allows the same workflow to use an archived Seurat workspace.
+if (grepl('\\.(RData|rda)$', input, ignore.case = TRUE)) {
+  env <- new.env(); load(input, envir = env)
+  candidates <- Filter(function(n) inherits(env[[n]], 'Seurat'), ls(env))
+  if ('tiss_nonimmune' %in% candidates) obj <- env$tiss_nonimmune
+  else if (length(candidates) == 1L) obj <- env[[candidates]]
+  else stop('RData must contain tiss_nonimmune or one unambiguous Seurat object.')
+} else obj <- readRDS(input)
+if (!inherits(obj, 'Seurat')) stop('Input must be an annotated Seurat object.')
+meta <- obj[[]]
+required <- c('patient_id', 'sample_name', 'sample_type', 'analysis')
+if (!all(required %in% names(meta)))
+  stop('Missing metadata: ', paste(setdiff(required, names(meta)), collapse = ', '))
+# The input must be the nonimmune subset used for this analysis.
+if ('immune_annotation' %in% names(meta)) {
+  labels <- unique(tolower(trimws(as.character(meta$immune_annotation))))
+  labels <- labels[!is.na(labels) & nzchar(labels)]
+  if (any(!labels %in% c('non-immune', 'nonimmune', 'non_immune', 'non immune')))
+    stop('Input contains cells outside the nonimmune subset. Supply the nonimmune Seurat object.')
 }
-
-input_path <- normalizePath(args[[1]], mustWork = TRUE)
-output_path <- args[[2]]
-
-suppressPackageStartupMessages(library(Seurat))
-
-plvap_state_genes <- c("PLVAP", "EMCN", "CA4", "RGCC", "ESM1", "ANGPT2", "APLN")
-kdr_program_genes <- c("KDR", "ESM1", "ANGPT2", "APLN", "FLT1", "TEK")
-vascular_state_genes <- unique(c(plvap_state_genes, kdr_program_genes))
-endothelial_identity_genes <- c("PECAM1", "VWF", "CDH5", "ENG", "RAMP2")
-
-zscore <- function(x) {
-  s <- stats::sd(x, na.rm = TRUE)
-  if (!is.finite(s) || s == 0) return(rep(0, length(x)))
-  (x - mean(x, na.rm = TRUE)) / s
-}
-
-row_signature <- function(df, genes) {
-  genes <- intersect(genes, colnames(df))
-  if (!length(genes)) return(rep(NA_real_, nrow(df)))
-  z <- as.data.frame(lapply(df[, genes, drop = FALSE], zscore))
-  rowMeans(z, na.rm = TRUE)
-}
-
-loaded <- new.env(parent = emptyenv())
-load(input_path, envir = loaded)
-if (!exists("tiss_nonimmune", envir = loaded, inherits = FALSE)) {
-  stop("The input RData does not contain 'tiss_nonimmune'.", call. = FALSE)
-}
-
-obj <- loaded$tiss_nonimmune
-meta <- obj@meta.data
-required_metadata <- c(
-  "nonimmune_general_annotation", "analysis", "patient_id", "sample_type",
-  "sample_name", "driver_gene"
-)
-missing_metadata <- setdiff(required_metadata, colnames(meta))
-if (length(missing_metadata)) {
-  stop(
-    sprintf("Missing metadata columns: %s", paste(missing_metadata, collapse = ", ")),
-    call. = FALSE
-  )
-}
-
-endothelial_cells <- rownames(meta)[
-  tolower(meta$nonimmune_general_annotation) == "endothelial"
-]
-meta_ec <- meta[endothelial_cells, , drop = FALSE]
-endothelial_before_filter <- nrow(meta_ec)
-
-stage_map <- c(naive = "TN", grouped_pr = "RD", grouped_pd = "PD")
-meta_ec$stage <- factor(stage_map[meta_ec$analysis], levels = c("TN", "RD", "PD"))
-meta_ec$patient <- sub("_NAT$", "", meta_ec$patient_id)
-meta_ec$is_nat <- grepl("_NAT$", meta_ec$patient_id) |
-  (!is.na(meta_ec$sample_type) & meta_ec$sample_type == "NAT")
-meta_ec <- meta_ec[!meta_ec$is_nat & !is.na(meta_ec$stage), , drop = FALSE]
-endothelial_cells <- rownames(meta_ec)
-
-genes <- intersect(
-  unique(c(vascular_state_genes, endothelial_identity_genes, "PLVAP")),
-  rownames(obj)
-)
-expected_genes <- c(
-  "PLVAP", "EMCN", "CA4", "RGCC", "ESM1", "ANGPT2", "APLN", "KDR",
-  "FLT1", "TEK", "PECAM1", "VWF", "CDH5", "ENG", "RAMP2"
-)
-if (!identical(genes, expected_genes)) {
-  stop("The source object's available ordered gene set differs from the verified input.", call. = FALSE)
-}
-
-expr <- as.matrix(
-  GetAssayData(obj, assay = "RNA", slot = "data")[genes, endothelial_cells, drop = FALSE]
-)
-
-sample_keys <- unique(meta_ec[, c("sample_name", "patient", "stage", "driver_gene")])
-sample_keys <- sample_keys[order(sample_keys$sample_name), ]
-rows <- vector("list", nrow(sample_keys))
-for (i in seq_len(nrow(sample_keys))) {
-  key <- sample_keys[i, ]
-  cells <- rownames(meta_ec)[meta_ec$sample_name == key$sample_name]
-  idx <- match(cells, colnames(expr))
-  values <- rowMeans(expr[, idx, drop = FALSE])
-  detected <- rowMeans(expr[, idx, drop = FALSE] > 0)
-  rows[[i]] <- cbind(
-    key,
-    n_ec = length(idx),
-    as.data.frame(as.list(values)),
-    plvap_positive_fraction = unname(detected["PLVAP"])
-  )
-}
-
-sample_df <- do.call(rbind, rows)
-sample_df$n_ec <- as.integer(sample_df$n_ec)
-numeric_columns <- setdiff(
-  colnames(sample_df),
-  c("sample_name", "patient", "stage", "driver_gene")
-)
-sample_df[numeric_columns] <- lapply(sample_df[numeric_columns], as.numeric)
-sample_df$plvap_state <- row_signature(sample_df, plvap_state_genes)
-sample_df$kdr_program <- row_signature(sample_df, kdr_program_genes)
-sample_df$vascular_state <- row_signature(sample_df, vascular_state_genes)
-
-observed_stage_counts <- table(sample_df$stage)
-if (
-  nrow(meta) != 9830L ||
-  endothelial_before_filter != 1098L ||
-  nrow(meta_ec) != 857L ||
-  sum(sample_df$n_ec) != 857L ||
-  nrow(sample_df) != 30L ||
-  ncol(sample_df) != 24L ||
-  length(unique(sample_df$patient)) != 23L ||
-  !identical(as.integer(observed_stage_counts), c(10L, 10L, 10L))
-) {
-  stop("Source-derived validation counts differ from the verified workflow.", call. = FALSE)
-}
-
-dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
-write.csv(sample_df, output_path, row.names = FALSE)
-
-cat(sprintf(
-  "Generated %d sample rows from %d retained endothelial cells and %d patients.\n",
-  nrow(sample_df), nrow(meta_ec), length(unique(sample_df$patient))
-))
-
+# Read the existing normalized RNA data without renormalizing or using scale.data.
+if (packageVersion('SeuratObject') >= '5.0.0') {
+  layers <- Layers(obj[['RNA']])
+  if (!'data' %in% layers)
+    stop('RNA assay needs a single normalized data layer. Join split data layers before running.')
+  expression <- LayerData(obj, assay = 'RNA', layer = 'data')
+} else expression <- GetAssayData(obj, assay = 'RNA', slot = 'data')
+genes <- c('PLVAP', 'PECAM1', 'PTPRC')
+if (!all(genes %in% rownames(expression))) stop('RNA data must contain PLVAP, PECAM1, PTPRC.')
+if (!all(rownames(meta) %in% colnames(expression))) stop('Metadata/expression cell IDs do not match.')
+v <- as.matrix(expression[genes, rownames(meta), drop = FALSE])
+if (any(!is.finite(v)) || any(v < 0)) stop('Expected finite nonnegative RNA log-normalized expression.')
+stage_map <- c(naive = 'TN', grouped_pr = 'RD', grouped_pd = 'PD')
+patient <- as.character(meta$patient_id)
+stage <- unname(stage_map[as.character(meta$analysis)])
+keep <- !is.na(stage) & !is.na(patient) & nzchar(patient) &
+  !grepl('_NAT$', patient) & (is.na(meta$sample_type) | meta$sample_type != 'NAT')
+if (any(is.na(meta$sample_name[keep]) | !nzchar(as.character(meta$sample_name[keep]))))
+  stop('Retained cells have missing biopsy/sample_name values.')
+a <- data.frame(cell_barcode = rownames(meta)[keep],
+  patient = sub('_NAT$', '', patient[keep]), stage = stage[keep],
+  biopsy = as.character(meta$sample_name[keep]),
+  PLVAP = v['PLVAP', keep], PECAM1 = v['PECAM1', keep], PTPRC = v['PTPRC', keep])
+a$denominator <- as.integer(a$PECAM1 > 2 & a$PTPRC == 0)
+a$numerator <- as.integer(a$denominator == 1L & a$PLVAP > 2)
+b <- aggregate(cbind(numerator, denominator) ~ patient + stage + biopsy, a, sum)
+b$fraction <- ifelse(b$denominator > 0, b$numerator / b$denominator, NA_real_)
+valid <- b[!is.na(b$fraction), ]
+if (!nrow(valid)) stop('No biopsies have eligible cells.')
+p <- aggregate(fraction ~ patient + stage, valid, mean)
+p <- p[order(p$patient, p$stage), ]
+ns <- sapply(c('TN', 'RD', 'PD'), function(st) sum(p$stage == st))
+if (any(ns < 2)) stop('At least two patient-stage values per group are required.')
+# Patient-aligned version preserves repeated patient identities and missing stages.
+aligned <- reshape(p, idvar = 'patient', timevar = 'stage', direction = 'wide')
+names(aligned) <- sub('^fraction\\.', '', names(aligned))
+aligned <- aligned[order(aligned$patient), c('patient', 'TN', 'RD', 'PD')]
+# Compact three-column version: each column lists its own patients alphabetically.
+# Rows across columns do not represent matched patients.
+compact <- as.data.frame(setNames(lapply(c('TN', 'RD', 'PD'), function(st) {
+  z <- p$fraction[p$stage == st]; c(z, rep(NA_real_, max(ns) - length(z)))
+}), c('TN', 'RD', 'PD')))
+tests <- do.call(rbind, lapply(c('TN', 'PD'), function(st) {
+  x <- p$fraction[p$stage == st]; y <- p$fraction[p$stage == 'RD']
+  test <- t.test(x, y, paired = FALSE, var.equal = TRUE, alternative = 'two.sided')
+  data.frame(comparison = paste(st, 'RD', sep = '-'), n_group = length(x), n_RD = length(y),
+    mean_group = mean(x), mean_RD = mean(y), difference = mean(x) - mean(y),
+    t = unname(test$statistic), df = unname(test$parameter), raw_p = test$p.value,
+    difference_CI95_lower = test$conf.int[1], difference_CI95_upper = test$conf.int[2])
+}))
+options(digits = 17)
+write.csv(compact, file.path(out, 'TN_RD_PD_patient_fractions.csv'), row.names = FALSE, na = '')
+write.csv(aligned, file.path(out, 'patient_fractions_with_IDs.csv'), row.names = FALSE, na = '')
+write.csv(b, file.path(out, 'biopsy_counts_and_fractions.csv'), row.names = FALSE, na = '')
+write.csv(tests, file.path(out, 'unpaired_Student_t_tests.csv'), row.names = FALSE)
+write.csv(a, file.path(out, 'cell_selection_audit.csv'), row.names = FALSE)
+capture.output(sessionInfo(), file = file.path(out, 'session_info.txt'))
+print(tests)
+cat('\nSaved results to:', normalizePath(out), '\n')
